@@ -60,15 +60,16 @@ class SelectiveLogger:
         self.file.critical(msg)
 
 
+sh = logging.StreamHandler()
+sh.setFormatter(CustomTerminalFormatter())
+
 def get_logger(log_path, log_file, log_name='default'):
+    global sh
     if not os.path.exists(log_path):
         os.makedirs(log_path)
 
     term = logging.getLogger(log_name).getChild('terminal')
     file = logging.getLogger(log_name).getChild('file')
-
-    sh = logging.StreamHandler()
-    sh.setFormatter(CustomTerminalFormatter())
 
     fh = logging.FileHandler(f'{log_path}/{log_file}.log')
     fh.setFormatter(CustomFileFormatter())
