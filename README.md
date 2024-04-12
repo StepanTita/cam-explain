@@ -103,3 +103,73 @@ tp / (tp + fn) = recall (how well we distinguish true explanation from false exp
 | Space-RoBERTa    | 128            |        | TOP 1 | 0.1445     | 0.9976      | 0.9976     | 3.6521      | 3.6521     | 0.1377     | 0.0338     | 0.0451     | 0.0391     |
 |                  |                |        | TOP 3 | 0.0747     | 0.9967      | 0.9960     | 4.1702      | 4.7152     | 0.1120     | 0.0523     | 0.0458     | 0.1092     |
 |                  |                |        | TOP 5 | 0.0605     | 0.9963      | 0.9954     | 4.5010      | 5.1834     | 0.1016     | 0.0599     | 0.0443     | 0.1789     |
+
+## Eraser Benchmark
+
+Implement the Eraser benchmark and test it for the eraser datasets.
+Test the benchmark for the Hate-Xplain dataset.
+
+### Eraser Benchmark explained:
+
+- Train the model with the dataset, since the documents are too long, we would be sampling only a part of the document
+  with annotated rationale.
+  ??? How to sample the rationale? (check this with the original paper)
+  What if we sample some part of the document that is not relevant and also the part that is relevant and concatenate
+  them?
+- Take the query and use it as the text_a, and add sampled text as text_b.
+- Remove normalization from space model concept space.
+
+### HateXplain Metrics (hard rationale):
+
+- Precision
+- Recall
+- F1 Score (IOU)
+- Accuracy
+- Jaccard Index
+
+Calculate those based on the rationale and the predicted rationale (this is the token predictions for the space model).
+
+Use binary cross-entropy with logits here as the metric.
+
+### HateXplain Metrics (soft rationale)
+
+- Exponentially distribute the weights of the true rationale to the adjacent tokens.
+- Softmax the updated weights vector.
+
+Recall:
+
+- Multiply hard predicted rationale with true rationale.
+- Sum the resulting rationale vectors.
+- Create a histogram of the resulting sums (the more in the higher region - the better).
+
+Precision:
+
+- Exponentially distribute the weights of the predicted rationale to the adjacent tokens.
+- Multiply predicted rationale by the true hard rationale.
+- Sum the resulting rationale vectors.
+- Create a histogram of the resulting sums (the more in the higher region - the better).
+
+#### Rationale loss
+
+...
+
+- test on the additional dataset zero-shot when trained with rationale vs without rationale.
+
+| Rationale | Dataset    | Model      | # Latent Dimensions | loss   | acc    | cs acc | f1     | cs f1  | precision | recall | rat. jaccard | rat. acc | rat. f1 | rat. precision | rat. recall |
+|-----------|------------|------------|---------------------|--------|--------|--------|--------|--------|-----------|--------|--------------|----------|---------|----------------|-------------|
+| Yes       | Hatexplain | BERT       | N/A                 | 0.8120 | 0.7907 | N/A    | 0.7905 | N/A    | 0.7904    | 0.7906 | 0.0247       | 0.0482   | 0.0391  | 0.0247         | 0.1738      |
+|           |            | Space-BERT | 3                   | 0.7898 | 0.7898 | 0.     | 0.7896 | 0.     | 0.7895    | 0.7899 | 0.0731       | 0.5672   | 0.1016  | 0.0732         | 0.1731      |
+|           |            | Space-BERT | 64                  | 0.6951 | 0.7872 | 0.     | 0.7857 | 0.     | 0.7891    | 0.7852 | 0.0437       | 0.2983   | 0.0658  | 0.0437         | 0.1738      |
+|           |            | Space-BERT | 128                 | 0.7237 | 0.7925 | 0.     | 0.7910 | 0.     | 0.7948    | 0.7903 | 0.0247       | 0.0482   | 0.0391  | 0.0247         | 0.1738      |
+| No        | Hatexplain | BERT       | N/A                 | 0.4697 | 0.7916 | N/A    | 0.7914 | N/A    | 0.7913    | 0.7916 | N/A          | N/A      | N/A     | N/A            | N/A         |
+|           |            | Space-BERT | 3                   | 0.6589 | 0.7811 | 0.1690 | 0.7806 | 0.1400 | 0.7807    | 0.7807 | N/A          | N/A      | N/A     | N/A            | N/A         |
+|           |            | Space-BERT | 64                  | 0.5710 | 0.7881 | 0.7942 | 0.7868 | 0.7942 | 0.7897    | 0.7862 | N/A          | N/A      | N/A     | N/A            | N/A         |
+|           |            | Space-BERT | 128                 | 0.5963 | 0.7846 | 0.7872 | 0.7828 | 0.7872 | 0.7875    | 0.7822 | N/A          | N/A      | N/A     | N/A            | N/A         |
+| Yes       | HSOL       | BERT       | N/A                 | 6.5680 | 0.1782 | N/A    | 0.1962 | N/A    | 0.1747    | 0.4101 | N/A          | N/A      | N/A     | N/A            | N/A         |
+|           |            | Space-BERT | 3                   | 1.8144 | 0.1733 | 0.7490 | 0.1880 | 0.3815 | 0.1564    | 0.4013 | N/A          | N/A      | N/A     | N/A            | N/A         |
+|           |            | Space-BERT | 64                  | 4.4699 | 0.1777 | 0.7742 | 0.2002 | 0.2909 | 0.4218    | 0.4149 | N/A          | N/A      | N/A     | N/A            | N/A         |
+|           |            | Space-BERT | 128                 | 5.2695 | 0.1754 | 0.7740 | 0.1948 | 0.2909 | 0.4033    | 0.4151 | N/A          | N/A      | N/A     | N/A            | N/A         |
+| No        | HSOL       | BERT       | N/A                 | 6.4491 | 0.1782 | N/A    | 0.1965 | N/A    | 0.1754    | 0.4103 | N/A          | N/A      | N/A     | N/A            | N/A         |
+|           |            | Space-BERT | 3                   | 2.5876 | 0.1763 | 0.0618 | 0.1899 | 0.0599 | 0.1669    | 0.4033 | N/A          | N/A      | N/A     | N/A            | N/A         |
+|           |            | Space-BERT | 64                  | 4.1446 | 0.1771 | 0.1761 | 0.2011 | 0.1906 | 0.1738    | 0.4144 | N/A          | N/A      | N/A     | N/A            | N/A         |
+|           |            | Space-BERT | 128                 | 4.4425 | 0.1762 | 0.1764 | 0.1952 | 0.1900 | 0.1571    | 0.4144 | N/A          | N/A      | N/A     | N/A            | N/A         |

@@ -1,0 +1,12 @@
+Val loss: 0.6346339525447952
+Val acc: 0.7259194395796847
+CS Val acc: 0.6260945709281961
+Val f1: 0.7248559220335564
+CS Val acc: 0.6101432439800671
+Val precision: 0.7258221951769492
+Val recall: 0.7245907984959079
+Val rational jaccard: 0.0
+Val rational accuracy: 0.0
+Val rational f1: 0.0
+Val rational precision: 0.0
+Val rational recall: 0.0
