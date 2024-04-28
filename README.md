@@ -173,3 +173,8 @@ Precision:
 |           |            | Space-BERT | 3                   | 2.5876 | 0.1763 | 0.0618 | 0.1899 | 0.0599 | 0.1669    | 0.4033 | N/A          | N/A      | N/A     | N/A            | N/A         |
 |           |            | Space-BERT | 64                  | 4.1446 | 0.1771 | 0.1761 | 0.2011 | 0.1906 | 0.1738    | 0.4144 | N/A          | N/A      | N/A     | N/A            | N/A         |
 |           |            | Space-BERT | 128                 | 4.4425 | 0.1762 | 0.1764 | 0.1952 | 0.1900 | 0.1571    | 0.4144 | N/A          | N/A      | N/A     | N/A            | N/A         |
+
+TODO:
+* !!! Train only last classifier layer for the space model.
+* https://hatebase.org/search_results
+* Rational loss to space model
