@@ -95,63 +95,26 @@ def prepare_dataset(model_name, max_seq_len, device, seed):
     :param seed:
     :return:
     """
-    # train_df = pd.read_csv('data/covid_train.csv', index_col=0)
-    # test_df = pd.read_csv('data/covid_test.csv', index_col=0)
-    # val_df = pd.read_csv('data/covid_val.csv', index_col=0)
-    #
-    # def encode_label(s: str):
-    #     if s == 'fake':
-    #         return 1
-    #     else:
-    #         return 0
-    #
-    # train_df['label'] = train_df['label'].apply(encode_label)
-    # val_df['label'] = val_df['label'].apply(encode_label)
-    # test_df['label'] = test_df['label'].apply(encode_label)
+    # Load the IMDb dataset
+    dataset = load_dataset("imdb")
 
-    # dataset = DatasetDict({
-    #     'train': Dataset.from_pandas(train_df[['tweet', 'label']]),
-    #     'test': Dataset.from_pandas(test_df[['tweet', 'label']]),
-    #     'val': Dataset.from_pandas(val_df[['tweet', 'label']])
-    # })
+    # Split the training set into training (80%) and validation (20%) sets
+    train_testvalid = dataset['train'].train_test_split(test_size=0.2, seed=42)
 
-    goss_fake_df = pd.read_csv('data/gossipcop_fake.csv', index_col=0)
-    goss_fake_df['label'] = 1
-    goss_fake_df['label'] = goss_fake_df['label'].astype(int)
-
-    goss_real_df = pd.read_csv('data/gossipcop_real.csv', index_col=0)
-    goss_real_df['label'] = 0
-    goss_real_df['label'] = goss_real_df['label'].astype(int)
-
-    politi_fake_df = pd.read_csv('data/politifact_fake.csv', index_col=0)
-    politi_fake_df['label'] = 1
-    politi_fake_df['label'] = politi_fake_df['label'].astype(int)
-
-    politi_real_df = pd.read_csv('data/politifact_real.csv', index_col=0)
-    politi_real_df['label'] = 0
-    politi_real_df['label'] = politi_real_df['label'].astype(int)
-
-    train_df = pd.concat([
-        goss_fake_df,
-        goss_real_df,
-        politi_fake_df,
-        politi_real_df
-    ], ignore_index=True, axis=0)
-
-    train_df = train_df[train_df['title'].notnull()]
-
-    train_split, test_split = train_test_split(train_df, test_size=0.2, random_state=seed)
-    test_split, val_split = train_test_split(test_split, test_size=0.2, random_state=seed)
+    # Assign datasets
+    train_dataset = train_testvalid['train']
+    val_dataset = train_testvalid['test']
+    test_dataset = dataset['test']
 
     dataset = DatasetDict({
-        'train': Dataset.from_pandas(train_split[['title', 'label']]),
-        'test': Dataset.from_pandas(test_split[['title', 'label']]),
-        'val': Dataset.from_pandas(val_split[['title', 'label']])
+        'train': train_dataset,
+        'test': test_dataset,
+        'val': val_dataset
     })
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenized_dataset = dataset.map(
-        lambda x: tokenizer(x['title'], truncation=True, padding='max_length', max_length=max_seq_len,
+        lambda x: tokenizer(x['text'], truncation=True, padding='max_length', max_length=max_seq_len,
                             return_tensors='pt'),
         batched=True)
     tokenized_dataset.set_format('torch', device=device)
@@ -587,7 +550,7 @@ def train_space(log, tokenized_dataset, val_dataloader, config, device):
 
         full_history = {k: full_history.get(k, []) + v for k, v in space_history.items()}
 
-        val_loss, val_preds, val_labels, cs_val_preds = eval_epoch(space_model, val_dataloader, eval_epoch)
+        val_loss, val_preds, val_labels, cs_val_preds = eval_epoch(space_model, val_dataloader, config)
 
         cs_val_acc = accuracy_score(val_labels, cs_val_preds)
         cs_val_f1 = f1_score(val_labels, cs_val_preds, average='macro')
@@ -622,7 +585,7 @@ def train_space(log, tokenized_dataset, val_dataloader, config, device):
     if not os.path.exists(f'models/{config["experiment_name"]}'):
         os.makedirs(f'models/{config["experiment_name"]}', exist_ok=True)
 
-    full_model_name = f'models/{config["experiment_name"]}/{config["dataset_name"]}_space-{config["model_name"]}-({config["n_latent"]})_{config["num_epochs"] * config["iterations"]}.bin'
+    full_model_name = f'models/{config["experiment_name"]}/{config["dataset_name"]}_space-{config["model_name"].replace("/", "_")}-({config["n_latent"]})_{config["num_epochs"] * config["iterations"]}.bin'
 
     log.info(f'Saving space model: {full_model_name}')
 
@@ -678,9 +641,9 @@ def eval_results(log, results_path, model, val_dataloader, config):
 
 
 def run(config):
-    base_name = f'{config["dataset_name"]}_{config["model_name"]}_{"space" if config["train_space"] else ""}_({config["n_latent"]})_{config["num_epochs"] * config["iterations"]}_{config["device_id"]}'
+    base_name = f'{config["dataset_name"]}_{config["model_name"].replace("/", "_")}_{"space" if config["train_space"] else ""}_({config["n_latent"]})_{config["num_epochs"] * config["iterations"]}_{config["device_id"]}'
 
-    log = get_logger(f'logs/{config["experiment_name"]}', f'{base_name}.txt')
+    log = get_logger(f'logs/{config["experiment_name"]}/', f'{base_name}.log')
 
     log.info('Starting...', terminal=config['log_terminal'])
 
@@ -718,7 +681,7 @@ def run(config):
     if config['train_space']:
         log.debug('Training space model...', terminal=config['log_terminal'])
 
-        space_name = f'{config["dataset_name"]}_space-{config["model_name"]}-({config["n_latent"]})_{config["num_epochs"] * config["iterations"]}_{config["device_id"]}'
+        space_name = f'{config["dataset_name"]}_space-{config["model_name"].replace("/", "_")}-({config["n_latent"]})_{config["num_epochs"] * config["iterations"]}_{config["device_id"]}'
         # this may return None if some error occured, and log_continue fired
         res = train_space(log, tokenized_dataset, val_dataloader, config, device)
         if res is not None:

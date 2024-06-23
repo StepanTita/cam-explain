@@ -1,5 +1,5 @@
+import os
 import logging
-import os.path
 import traceback
 
 from utils import grey, cyan, yellow, red, bold
@@ -60,23 +60,49 @@ class SelectiveLogger:
         self.file.critical(msg)
 
 
-sh = logging.StreamHandler()
-sh.setFormatter(CustomTerminalFormatter())
+class SingletonStreamHandler(logging.StreamHandler):
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SingletonStreamHandler, cls).__new__(cls)
+            cls._instance.__init_once()
+        return cls._instance
+
+    def __init_once(self):
+        super(SingletonStreamHandler, self).__init__()
+
+class SingletonFileHandler(logging.FileHandler):
+    _instances = {}
+
+    def __new__(cls, filename):
+        if filename not in cls._instances:
+            cls._instances[filename] = super(SingletonFileHandler, cls).__new__(cls)
+            cls._instances[filename].__init_once(filename)
+        return cls._instances[filename]
+
+    def __init_once(self, filename):
+        super(SingletonFileHandler, self).__init__(filename)
 
 def get_logger(log_path, log_file, log_name='default'):
-    global sh
     if not os.path.exists(log_path):
         os.makedirs(log_path)
 
     term = logging.getLogger(log_name).getChild('terminal')
     file = logging.getLogger(log_name).getChild('file')
 
-    fh = logging.FileHandler(f'{log_path}/{log_file}.log')
+    # Get singleton handlers
+    sh = SingletonStreamHandler()
+    fh = SingletonFileHandler(f'{log_path}/{log_file.replace("/", "_")}.log')
+
     fh.setFormatter(CustomFileFormatter())
 
-    # link handler to logger
-    term.addHandler(sh)
-    file.addHandler(fh)
+    # Ensure handlers are added only once
+    if not any(isinstance(handler, SingletonStreamHandler) for handler in term.handlers):
+        term.addHandler(sh)
+    
+    if not any(isinstance(handler, SingletonFileHandler) and handler.baseFilename == fh.baseFilename for handler in file.handlers):
+        file.addHandler(fh)
 
     # Set logging level to the logger
     term.setLevel(logging.DEBUG)
