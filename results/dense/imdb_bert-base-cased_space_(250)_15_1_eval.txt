@@ -1,0 +1,7 @@
+Val loss: 0.41652857405798777
+Val acc: 0.83084
+CS Val acc: N/A
+Val f1: 0.8308344651743653
+CS Val f1: N/A
+Val precision: 0.8308833038891599
+Val recall: 0.83084

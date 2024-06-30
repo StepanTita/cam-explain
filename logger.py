@@ -96,13 +96,12 @@ def get_logger(log_path, log_file, log_name='default'):
     fh = SingletonFileHandler(f'{log_path}/{log_file.replace("/", "_")}.log')
 
     fh.setFormatter(CustomFileFormatter())
-
-    # Ensure handlers are added only once
-    if not any(isinstance(handler, SingletonStreamHandler) for handler in term.handlers):
-        term.addHandler(sh)
     
-    if not any(isinstance(handler, SingletonFileHandler) and handler.baseFilename == fh.baseFilename for handler in file.handlers):
-        file.addHandler(fh)
+    term.handlers = []
+    file.handlers = []
+
+    term.addHandler(sh)
+    file.addHandler(fh)
 
     # Set logging level to the logger
     term.setLevel(logging.DEBUG)
@@ -110,13 +109,12 @@ def get_logger(log_path, log_file, log_name='default'):
 
     return SelectiveLogger(term, file)
 
-
 def log_continue(fn):
     def wrapped(log, *args, **kwargs):
         try:
             return fn(log, *args, **kwargs)
         except Exception as e:
-            traceback.print_exception(e)
+            print(traceback.format_exc())
             log.error(str(e))
             return None
 

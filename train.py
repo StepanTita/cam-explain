@@ -450,15 +450,18 @@ def training(model, train_data, val_data, log, config):
         log.info(f'Train recall: {train_recall} | Val recall: {val_recall}', terminal=config['log_terminal'])
     return history
 
-
-@log_continue
-def train_base(log, tokenized_dataset, val_dataloader, config, device):
+def init_base(config):
     base_model = AutoModelForSequenceClassification.from_pretrained(config["model_name"],
-                                                                    num_labels=config['num_labels']).to(
-        device)
+                                                                    num_labels=config['num_labels'])
 
     for param in base_model.bert.parameters():
         param.requires_grad = False
+    return base_model
+
+
+@log_continue
+def train_base(log, tokenized_dataset, val_dataloader, config, device):
+    base_model = config['init_base_func'](config).to(device)
 
     log.info(f'Number of parameters: {count_parameters(base_model)}')
 
@@ -502,9 +505,8 @@ def train_base(log, tokenized_dataset, val_dataloader, config, device):
     return base_model, full_history
 
 
-@log_continue
-def train_space(log, tokenized_dataset, val_dataloader, config, device):
-    base_model = AutoModel.from_pretrained(config['model_name']).to(device)
+def init_space(config):
+    base_model = AutoModel.from_pretrained(config['model_name'])
 
     space_model = SpaceModelForSequenceClassification(
         base_model,
@@ -514,7 +516,14 @@ def train_space(log, tokenized_dataset, val_dataloader, config, device):
         l2=config['l2'],
         ce_w=config['cross_entropy_weight'],
         fine_tune=True
-    ).to(device)
+    )
+    
+    return space_model
+
+
+@log_continue
+def train_space(log, tokenized_dataset, val_dataloader, config, device):
+    space_model = config['init_space_func'](config).to(device)
 
     log.info(f'Number of space model parameters: {count_parameters(space_model)}')
 
@@ -568,8 +577,8 @@ def train_space(log, tokenized_dataset, val_dataloader, config, device):
         log.info(f'Val precision: {val_precision}')
         log.info(f'Val recall: {val_recall}')
 
-        # track best metrics based on cs f1
-        if cs_val_f1 > best_results['cs_f1']:
+        # track best metrics based on val f1
+        if cs_val_f1 > best_results['f1']:
             best_results['loss'] = val_loss / len(val_dataloader)
             best_results['acc'] = val_acc
             best_results['f1'] = val_f1
@@ -741,4 +750,7 @@ if __name__ == '__main__':
         # funcs:
         'preds_from_logits_func': get_preds_from_logits,
         'get_data_func': prepare_dataset,
+        
+        'init_space_func': init_space,
+        'init_base_func': init_base
     })
